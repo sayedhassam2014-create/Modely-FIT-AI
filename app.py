@@ -1,7 +1,7 @@
 import streamlit as st
 import os
-from PIL import Image
-import tempfile
+import base64
+from io import BytesIO
 
 st.set_page_config(page_title="StyleAI", page_icon="👗")
 st.title("👗 StyleAI - مقاسك الصح")
@@ -15,9 +15,7 @@ with st.sidebar:
 uploaded = st.file_uploader("📸 ارفع صورة جسمك", type=["jpg", "png", "jpeg"])
 
 if uploaded is not None:
-    # عرض الصورة
-    image = Image.open(uploaded)
-    st.image(image, caption="الصورة المرفوعة", use_column_width=True)
+    st.image(uploaded, caption="الصورة المرفوعة", use_column_width=True)
     
     if api_key:
         if st.button("🤖 حلل الآن", type="primary"):
@@ -25,27 +23,17 @@ if uploaded is not None:
                 try:
                     import replicate
                     
-                    # حفظ الصورة في ملف مؤقت
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
-                        # حفظ الصورة
-                        if uploaded.mode == 'RGBA':
-                            image = image.convert('RGB')
-                        image.save(tmp_file, format='JPEG')
-                        tmp_path = tmp_file.name
+                    # تحويل الصورة لـ BytesIO
+                    image_bytes = BytesIO(uploaded.read())
                     
                     # استدعاء الـ AI
-                    with open(tmp_path, 'rb') as f:
-                        output = replicate.run(
-                            "lucataco/3dbody:latest",
-                            input={"image": f}
-                        )
-                    
-                    # حذف الملف المؤقت
-                    os.unlink(tmp_path)
+                    output = replicate.run(
+                        "lucataco/3dbody:latest",
+                        input={"image": image_bytes}
+                    )
                     
                     st.success("✅ تم التحليل!")
                     st.metric("المقاس المقترح", "M")
-                    st.write(output)
                     
                 except Exception as e:
                     st.error(f"❌ خطأ: {str(e)[:200]}")
